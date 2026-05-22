@@ -1,2 +1,1 @@
-# gantt
 Gantt diagram tool
