@@ -1,1 +1,2 @@
-Gantt diagram tool
+Gantt diagram tool\
+https://benjo.github.io/gantt/
