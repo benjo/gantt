@@ -140,6 +140,10 @@
     <button onclick="openAddModal(2)" class="secondary">+ Sous-tâche</button>
     <div class="toolbar-sep"></div>
     <button onclick="exportSVG()" class="success">↓ SVG</button>
+    <div class="toolbar-sep"></div>
+    <button onclick="saveState()" class="secondary" title="Enregistrer le diagramme (Ctrl+Shift+S)">💾 Enregistrer</button>
+    <button onclick="document.getElementById('load-input').click()" class="secondary" title="Ouvrir un diagramme sauvegardé">📂 Ouvrir</button>
+    <input type="file" id="load-input" accept=".gantt,.json" style="display:none" onchange="loadState(event)">
   </div>
 
   <div id="main">
@@ -596,11 +600,95 @@ function exportSVG() {
   a.click();
 }
 
+// ─── Enregistrer / Ouvrir ─────────────────────────────────────────────────────
+function saveState() {
+  const state = {
+    version: 1,
+    savedAt: new Date().toISOString(),
+    projectStart,
+    fontFamily,
+    fontSize,
+    dayWidth,
+    nextId,
+    tasks
+  };
+  const json = JSON.stringify(state, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const a = document.createElement('a');
+  const name = 'gantt_' + projectStart + '.gantt';
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function loadState(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const state = JSON.parse(e.target.result);
+      if (!state.tasks || !Array.isArray(state.tasks)) throw new Error('Format invalide');
+
+      tasks = state.tasks;
+      nextId = state.nextId ?? (Math.max(0, ...tasks.map(t => t.id)) + 1);
+      selectedId = null;
+
+      // Restore project settings
+      if (state.projectStart) {
+        projectStart = state.projectStart;
+        document.getElementById('project-start').value = projectStart;
+      }
+      if (state.fontFamily) {
+        fontFamily = state.fontFamily;
+        document.getElementById('font-select').value = fontFamily;
+        document.documentElement.style.setProperty('--font', fontFamily);
+      }
+      if (state.fontSize) {
+        fontSize = state.fontSize;
+        document.getElementById('font-size').value = fontSize;
+        document.documentElement.style.setProperty('--font-size', fontSize + 'px');
+      }
+      if (state.dayWidth) {
+        dayWidth = state.dayWidth;
+        document.getElementById('zoom-select').value = dayWidth;
+      }
+
+      document.getElementById('edit-panel').style.display = 'none';
+      render();
+
+      const d = state.savedAt ? ' (sauvegardé le ' + new Date(state.savedAt).toLocaleString('fr-FR') + ')' : '';
+      showNotif('✓ Diagramme chargé' + d);
+    } catch (err) {
+      alert('Erreur lors de l\'ouverture du fichier : ' + err.message);
+    }
+    // Reset input so the same file can be re-chargé
+    event.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
+function showNotif(msg) {
+  let n = document.getElementById('save-notif');
+  if (!n) {
+    n = document.createElement('div');
+    n.id = 'save-notif';
+    n.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#22263a;border:1px solid #38d9a9;color:#38d9a9;padding:10px 18px;border-radius:8px;font-size:13px;z-index:9999;transition:opacity .4s;box-shadow:0 4px 16px rgba(0,0,0,.4)';
+    document.body.appendChild(n);
+  }
+  n.textContent = msg;
+  n.style.opacity = '1';
+  clearTimeout(n._t);
+  n._t = setTimeout(() => { n.style.opacity = '0'; }, 2800);
+}
+
 // Keyboard shortcuts
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') { closeModal(); closeEdit(); }
   if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && document.getElementById('add-modal').classList.contains('open')) confirmAdd();
-  if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); saveEdit(); }
+  if ((e.ctrlKey || e.metaKey) && e.key === 's' && !e.shiftKey) { e.preventDefault(); saveEdit(); }
+  if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'S') { e.preventDefault(); saveState(); }
 });
 </script>
 </body>
