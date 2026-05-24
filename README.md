@@ -1,2 +1,2 @@
-AI-generated Gantt diagram tool\
+AI-generated gantt diagram tool\
 https://benjo.github.io/gantt/
